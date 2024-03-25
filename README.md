@@ -12,24 +12,56 @@ A Kotlin library to parse, validate and convert International Standard Book Numb
 * Full test coverage
 * Stable API (methods and classes annotated by `@ApiStatus`)
 
-### Supported formats
+### Supported types
 
 * ISBN-13
 * ISBN-10
-* EAN-13
-* EAN-10
+* ISMN (printed music)
 * ISBN-A
 * GTIN-14
+* EAN-13 representation of ISBN-13 or ISMN
+* EAN-10 representation of ISBN-10
 
-ISBN formats supported with hyphen '-' or space ' ' separator.
+ISBN types supported with hyphen '-' or space ' ' separator.
 ISBN-10 'X' check digit is also supported.
 
-ISBN and EAN formats can be parsed with or without check digit,
+ISBN and EAN types can be parsed with or without check digit,
 which allows to use the library as a check digit calculator.
 
 ### How to install
 
-`TBD`
+The library is available through Maven Central
+
+Example for Gradle:
+
+```kotlin
+// build.gradle.kts
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation("dev.rlqd.libs:isbn:1.1.0")
+}
+```
+
+#### Versions
+
+Library version has the following format consisting of 3 numbers "x.y.z"
+
+Meaning of version number change:
+
+* x - major, potentially breaking changes
+* y - new features, potentially breaking changes to **experimental** classes only
+* z - minor fixes and embedded ranges updates
+
+How it's reflected in the code:
+
+Each class and some of the methods are annotated with one of the following:
+
+* `@ApiStatus.Experimental` - subject to change in further releases
+* `@ApiStatus.AvailableSince("x.y.z")` - author is committed to maintain backward compatibility, except major releases
 
 ### Kudos
 
@@ -66,14 +98,14 @@ or a separate instance with custom provider could be created using `ISBN.Custom(
 ```kotlin
 import dev.rlqd.isbn.*
 
-// Parse the code to get information about it (format is auto-detected)
+// Parse the code to get information about it (type is auto-detected)
 val bookNumber: BookNumber = ISBN.parse("978-5-17-095179-6")
 
-// Convert the code to a given format (ISBN-10 in this case)
+// Convert the code to a given type (ISBN-10 in this case)
 val isbn10: String = ISBN.convertToISBN10("978-5-17-095179-6")
 println(isbn10) // "5-17-095179-5"
 
-// Validate the code is properly formatted in a given format
+// Validate the code is of a given type and properly formatted
 try {
     ISBN.validateAsISBN13("978-5-17-095179-6")
     println("The code is valid ISBN-13!")
@@ -81,10 +113,10 @@ try {
     println("Something is wrong: ${e.message}")
 }
 
-// Validate the code is properly formatted in any of supported formats
+// Validate the code is of any supported type and properly formatted
 try {
     val bn: BookNumber = ISBN.validateAsAny("978-5-17-095179-6")
-    println("The code is valid ${bn.format.printedName}!")
+    println("The code is valid ${bn.type.printedName}!")
 } catch (e: ISBNException) {
     println("Something is wrong: ${e.message}")
 }
@@ -92,7 +124,7 @@ try {
 
 ### Methods reference
 
-Input string can be in any of the supported formats.
+Input string can contain any supported code type.
 Please read KDoc for details and note [exceptions](#v-exceptions).
 
 #### Parse
@@ -114,6 +146,8 @@ Methods return a properly formatted string
 * `convertToEAN10(input)`
 * `convertToISBNA(input)`
 * `convertToGTIN14(input, indicator)`
+* `convertToISMN(input)`
+* `convertToMusicEAN(input)`
 
 #### Validate
 
@@ -125,9 +159,11 @@ Methods return an instance of [BookNumber](#iii-booknumber)
 * `validateAsEAN10(input)`
 * `validateAsISBNA(input)`
 * `validateAsGTIN14(input)`
+* `validateAsISMN(input)`
+* `validateAsMusicEAN(input)`
 
 
-* `validateAsFormat(input, format)` target format is a enum value
+* `validateAsType(input, type)` target format is a enum value
 * `validateAsAny(input)` accepts any supported format
 
 ## III. BookNumber
@@ -166,6 +202,10 @@ Some may throw `ISBNConvertException`.
 * `toEAN13()`
 * `toISBNA()`
 * `toGTIN14()`
+* `toISMN()`
+* `toMusicEAN()`
+
+
 * `toFormat(targetFormat, keepSeparator = false)`
 * `toSourceFormat(keepSeparator = true)`
 
@@ -173,7 +213,7 @@ Some may throw `ISBNConvertException`.
 
 Parsed from ISBN 978-5-17-095179-6
 
-* `format = BookNumber.Format.ISBN_13` (enum)
+* `type = BookNumber.Type.ISBN_13` (enum)
 * `separator = '-'`
 * `packagingIndicator = null` (GTIN-14 specific)
 
@@ -309,6 +349,7 @@ which has `errorCode` property providing unique code for each error.
 | ISBNIntegrityException | 2-2        | Code has no check digit                                     |
 | ISBNIntegrityException | 2-3        | Can't compare check digit because of wrong input format     |
 | ISBNValidateException  | 3-1        | Incorrectly formatted code (misplaced hyphen, etc.)         |
-| ISBNValidateException  | 3-2        | Can't convert to the target format to compare               |
+| ISBNValidateException  | 3-2        | Detected different format instead                           |
 | ISBNConvertException   | 4-1        | Can't convert the code with new GS1 value to legacy ISBN-10 |
 | ISBNConvertException   | 4-2        | Missing required information (e.g. GTIN-14 packaging level) |
+| ISBNConvertException   | 4-3        | Conversion attempted between incompatible formats (ISMN)    |

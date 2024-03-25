@@ -34,7 +34,7 @@ class ISBNTest {
         assertEquals(17u, bn.registrant)
         assertEquals(95179u, bn.publication)
         assertEquals('6', bn.metadata.checkDigit)
-        assertEquals(BookNumber.Format.ISBN_13, bn.metadata.format)
+        assertEquals(BookNumber.Type.ISBN_13, bn.metadata.type)
         assertEquals('-', bn.metadata.separator)
         assertNull(bn.metadata.packagingIndicator)
     }
@@ -49,6 +49,12 @@ class ISBNTest {
             "978 5 17 095179 6",
             ISBN.convertToISBN13("978-5-17-095179-6", ' '),
         )
+
+        assertThrows<ISBNConvertException> {
+            ISBN.convertToISBN10("979-0-2600-0043-8") // ISMN
+        }.let {
+            assertEquals("4-3", it.errorCode)
+        }
     }
 
     @Test
@@ -67,6 +73,11 @@ class ISBNTest {
         }.let {
             assertEquals("4-1", it.errorCode)
         }
+        assertThrows<ISBNConvertException> {
+            ISBN.convertToISBN10("979-0-2600-0043-8") // ISMN
+        }.let {
+            assertEquals("4-3", it.errorCode)
+        }
     }
 
     @Test
@@ -75,6 +86,12 @@ class ISBNTest {
             "9785170951796",
             ISBN.convertToEAN13("978-5-17-095179-6"),
         )
+
+        assertThrows<ISBNConvertException> {
+            ISBN.convertToEAN13("9790260000438") // ISMN
+        }.let {
+            assertEquals("4-3", it.errorCode)
+        }
     }
 
     @Test
@@ -88,6 +105,11 @@ class ISBNTest {
             ISBN.convertToEAN10("979-10-90636-07-1")
         }.let {
             assertEquals("4-1", it.errorCode)
+        }
+        assertThrows<ISBNConvertException> {
+            ISBN.convertToEAN10("979-0-2600-0043-8") // ISMN
+        }.let {
+            assertEquals("4-3", it.errorCode)
         }
     }
 
@@ -107,6 +129,11 @@ class ISBNTest {
         }.let {
             assertEquals("4-2", it.errorCode)
         }
+        assertThrows<ISBNConvertException> {
+            ISBN.convertToGTIN14("979-0-2600-0043-8") // ISMN
+        }.let {
+            assertEquals("4-3", it.errorCode)
+        }
     }
 
     @Test
@@ -115,6 +142,37 @@ class ISBNTest {
             "10.978.517/0951796",
             ISBN.convertToISBNA("978-5-17-095179-6"),
         )
+        assertThrows<ISBNConvertException> {
+            ISBN.convertToISBNA("979-0-2600-0043-8") // ISMN
+        }.let {
+            assertEquals("4-3", it.errorCode)
+        }
+    }
+
+    @Test
+    fun convertToISMN() {
+        assertEquals(
+            "979-0-2600-0043-8",
+            ISBN.convertToISMN("9790260000438"),
+        )
+        assertThrows<ISBNConvertException> {
+            ISBN.convertToISMN("978-5-17-095179-6") // Non-music
+        }.let {
+            assertEquals("4-3", it.errorCode)
+        }
+    }
+
+    @Test
+    fun convertToMusicEAN() {
+        assertEquals(
+            "9790260000438",
+            ISBN.convertToMusicEAN("979-0-2600-0043-8"),
+        )
+        assertThrows<ISBNConvertException> {
+            ISBN.convertToMusicEAN("978-5-17-095179-6") // Non-music
+        }.let {
+            assertEquals("4-3", it.errorCode)
+        }
     }
 
     @Test
@@ -123,7 +181,7 @@ class ISBNTest {
             ISBN.validateAsISBN13("978-5-17-095179-6")
             ISBN.validateAsISBN13("978 5 17 095179 6")
             ISBN.validateAsISBN13("979-10-90636-07-1")
-            ISBN.validateAsFormat("978-5-17-095179-6", BookNumber.Format.ISBN_13)
+            ISBN.validateAsType("978-5-17-095179-6", BookNumber.Type.ISBN_13)
         }
         assertThrows<ISBNValidateException> {
             ISBN.validateAsISBN13("978-5-1709-5179-6") // misplaced separator
@@ -137,6 +195,12 @@ class ISBNTest {
             assertEquals("3-1", it.errorCode)
             assertEquals("'978 5 1709 5179 6' is not a valid ISBN-13, expected '978 5 17 095179 6'", it.message)
         }
+        assertThrows<ISBNValidateException> {
+            ISBN.validateAsISBN13("979-0-2600-0043-8") // ISMN
+        }.let {
+            assertEquals("3-2", it.errorCode)
+            assertEquals("'979-0-2600-0043-8' is not a valid ISBN-13, detected ISMN instead", it.message)
+        }
     }
 
     @Test
@@ -144,7 +208,7 @@ class ISBNTest {
         assertDoesNotThrow {
             ISBN.validateAsISBN10("5-17-095179-5")
             ISBN.validateAsISBN10("5 17 095179 5")
-            ISBN.validateAsFormat("5-17-095179-5", BookNumber.Format.ISBN_10)
+            ISBN.validateAsType("5-17-095179-5", BookNumber.Type.ISBN_10)
         }
         assertThrows<ISBNValidateException> {
             ISBN.validateAsISBN10("5-17_095179-5") // wrong separator
@@ -156,7 +220,7 @@ class ISBNTest {
             ISBN.validateAsISBN10("979-10-90636-07-1")
         }.let {
             assertEquals("3-2", it.errorCode)
-            assertEquals("'979-10-90636-07-1' is not a valid ISBN-10, as it can't be converted to it", it.message)
+            assertEquals("'979-10-90636-07-1' is not a valid ISBN-10, detected ISBN-13 instead", it.message)
         }
     }
 
@@ -164,13 +228,19 @@ class ISBNTest {
     fun validateAsEAN13() {
         assertDoesNotThrow {
             ISBN.validateAsEAN13("9785170951796")
-            ISBN.validateAsFormat("9785170951796", BookNumber.Format.EAN_13)
+            ISBN.validateAsType("9785170951796", BookNumber.Type.EAN_13)
         }
         assertThrows<ISBNValidateException> {
             ISBN.validateAsEAN13("978-5-17-095179-6") // must be without separators
         }.let {
-            assertEquals("3-1", it.errorCode)
-            assertEquals("'978-5-17-095179-6' is not a valid EAN-13, expected '9785170951796'", it.message)
+            assertEquals("3-2", it.errorCode)
+            assertEquals("'978-5-17-095179-6' is not a valid EAN-13, detected ISBN-13 instead", it.message)
+        }
+        assertThrows<ISBNValidateException> {
+            ISBN.validateAsEAN13("9790260000438") // ISMN
+        }.let {
+            assertEquals("3-2", it.errorCode)
+            assertEquals("'9790260000438' is not a valid EAN-13, detected EAN-13/ISMN instead", it.message)
         }
     }
 
@@ -178,13 +248,13 @@ class ISBNTest {
     fun validateAsEAN10() {
         assertDoesNotThrow {
             ISBN.validateAsEAN10("5170951795")
-            ISBN.validateAsFormat("5170951795", BookNumber.Format.EAN_10)
+            ISBN.validateAsType("5170951795", BookNumber.Type.EAN_10)
         }
         assertThrows<ISBNValidateException> {
             ISBN.validateAsEAN10("5-17-095179-5") // must be without separators
         }.let {
-            assertEquals("3-1", it.errorCode)
-            assertEquals("'5-17-095179-5' is not a valid EAN-10, expected '5170951795'", it.message)
+            assertEquals("3-2", it.errorCode)
+            assertEquals("'5-17-095179-5' is not a valid EAN-10, detected ISBN-10 instead", it.message)
         }
     }
 
@@ -193,7 +263,7 @@ class ISBNTest {
         assertDoesNotThrow {
             ISBN.validateAsGTIN14("09785170951796")
             ISBN.validateAsGTIN14("19785170951793")
-            ISBN.validateAsFormat("19785170951793", BookNumber.Format.GTIN_14)
+            ISBN.validateAsType("19785170951793", BookNumber.Type.GTIN_14)
         }
     }
 
@@ -201,13 +271,53 @@ class ISBNTest {
     fun validateAsISBNA() {
         assertDoesNotThrow {
             ISBN.validateAsISBNA("10.978.517/0951796")
-            ISBN.validateAsFormat("10.978.517/0951796", BookNumber.Format.ISBN_A)
+            ISBN.validateAsType("10.978.517/0951796", BookNumber.Type.ISBN_A)
         }
         assertThrows<ISBNValidateException> {
             ISBN.validateAsISBNA("10.978.517.0951796") // wrong separator
         }.let {
             assertEquals("3-1", it.errorCode)
             assertEquals("'10.978.517.0951796' is not a valid ISBN-A, expected '10.978.517/0951796'", it.message)
+        }
+    }
+
+    @Test
+    fun validateAsISMN() {
+        assertDoesNotThrow {
+            ISBN.validateAsISMN("979-0-2600-0043-8")
+            ISBN.validateAsType("979-0-2600-0043-8", BookNumber.Type.ISMN)
+        }
+        assertThrows<ISBNValidateException> {
+            ISBN.validateAsISMN("9790260000438")
+        }.let {
+            assertEquals("3-2", it.errorCode)
+            assertEquals("'9790260000438' is not a valid ISMN, detected EAN-13/ISMN instead", it.message)
+        }
+        assertThrows<ISBNValidateException> {
+            ISBN.validateAsISMN("978-5-17-095179-6") // Non-music
+        }.let {
+            assertEquals("3-2", it.errorCode)
+            assertEquals("'978-5-17-095179-6' is not a valid ISMN, detected ISBN-13 instead", it.message)
+        }
+    }
+
+    @Test
+    fun validateAsMusicEAN() {
+        assertDoesNotThrow {
+            ISBN.validateAsMusicEAN("9790260000438")
+            ISBN.validateAsType("9790260000438", BookNumber.Type.MUSIC_EAN)
+        }
+        assertThrows<ISBNValidateException> {
+            ISBN.validateAsMusicEAN("979-0-2600-0043-8")
+        }.let {
+            assertEquals("3-2", it.errorCode)
+            assertEquals("'979-0-2600-0043-8' is not a valid EAN-13/ISMN, detected ISMN instead", it.message)
+        }
+        assertThrows<ISBNValidateException> {
+            ISBN.validateAsMusicEAN("9785170951796") // Non-music
+        }.let {
+            assertEquals("3-2", it.errorCode)
+            assertEquals("'9785170951796' is not a valid EAN-13/ISMN, detected EAN-13 instead", it.message)
         }
     }
 
@@ -224,6 +334,8 @@ class ISBNTest {
                 "09785170951796",
                 "19785170951793",
                 "10.978.517/0951796",
+                "979-0-2600-0043-8",
+                "9790260000438",
             ).forEach(ISBN::validateAsAny)
         }
         assertThrows<ISBNValidateException> {

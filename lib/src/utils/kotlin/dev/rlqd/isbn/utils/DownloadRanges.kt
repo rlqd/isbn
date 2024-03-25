@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package dev.rlqd.isbn.ranges.build
+package dev.rlqd.isbn.utils
 
 import dev.rlqd.isbn.ranges.utils.DownloadClient
 import kotlinx.serialization.encodeToString

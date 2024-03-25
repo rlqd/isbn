@@ -12,22 +12,25 @@ class ParserTest {
         val parser = Parser(MockRangesProvider())
 
         mapOf(
-            "978-5-17-095179-6" to BookNumber.Format.ISBN_13,
-            "978 5 17 095179 6" to BookNumber.Format.ISBN_13,
-            "978-5-17-095179" to BookNumber.Format.ISBN_13,
-            "9785170951796" to BookNumber.Format.EAN_13,
-            "978517095179" to BookNumber.Format.EAN_13,
-            "10.978.517/0951796" to BookNumber.Format.ISBN_A,
-            "1-55404-295-3" to BookNumber.Format.ISBN_10,
-            "1 55404 295 3" to BookNumber.Format.ISBN_10,
-            "1-55404-295" to BookNumber.Format.ISBN_10,
-            "1554042953" to BookNumber.Format.EAN_10,
-            "155404295" to BookNumber.Format.EAN_10,
-            "09785170951796" to BookNumber.Format.GTIN_14,
-            "19785170951793" to BookNumber.Format.GTIN_14,
+            "978-5-17-095179-6" to BookNumber.Type.ISBN_13,
+            "978 5 17 095179 6" to BookNumber.Type.ISBN_13,
+            "978-5-17-095179" to BookNumber.Type.ISBN_13,
+            "9785170951796" to BookNumber.Type.EAN_13,
+            "978517095179" to BookNumber.Type.EAN_13,
+            "10.978.517/0951796" to BookNumber.Type.ISBN_A,
+            "1-55404-295-3" to BookNumber.Type.ISBN_10,
+            "1 55404 295 3" to BookNumber.Type.ISBN_10,
+            "1-55404-295" to BookNumber.Type.ISBN_10,
+            "1554042953" to BookNumber.Type.EAN_10,
+            "155404295" to BookNumber.Type.EAN_10,
+            "09785170951796" to BookNumber.Type.GTIN_14,
+            "19785170951793" to BookNumber.Type.GTIN_14,
+            "979-0-2600-0043-8" to BookNumber.Type.ISMN,
+            "M-2600-0043-8" to BookNumber.Type.ISMN,
+            "9790260000438" to BookNumber.Type.MUSIC_EAN,
         ).forEach { (code, format) ->
             val bn = parser.parse(code, false)
-            assertEquals(format, bn.metadata.format, "Detected wrong format for $code (must be ${format.printedName})")
+            assertEquals(format, bn.metadata.type, "Detected wrong format for $code (must be ${format.printedName})")
         }
     }
 
@@ -39,6 +42,8 @@ class ParserTest {
             "978-5-17-095179-6" to '-',
             "978 5 17 095179 6" to ' ',
             "978-5-17-095179" to '-',
+            "979-0-2600-0043-8" to '-',
+            "M-2600-0043-8" to '-',
             "9785170951796" to null,
             "10.978.517/0951796" to null,
             "1-55404-295-3" to '-',
@@ -62,6 +67,9 @@ class ParserTest {
             "978-5-17-095179"   to "978-5-17-095179-6",
             "9785170951796"     to "9785170951796",
             "978517095179"      to "9785170951796",
+            "979-0-2600-0043-8" to "979-0-2600-0043-8",
+            "M-2600-0043-8"     to "979-0-2600-0043-8",
+            "9790260000438"     to "9790260000438",
             "1-55404-295-X"     to "1-55404-295-X",
             "1 55404 295 X"     to "1 55404 295 X",
             "1-55404-295"       to "1-55404-295-X",
@@ -98,7 +106,7 @@ class ParserTest {
             assertEquals(95179u, isbn.publication, code)
             assertEquals("095179", isbn.publicationElement, code)
             // Test metadata
-            assertFalse(isbn.metadata.format.isShort, code)
+            assertFalse(isbn.metadata.type.isShort, code)
             assertTrue(isbn.metadata.hasCheckDigit, code)
             assertTrue(isbn.metadata.isCheckDigitValid, code)
             assertEquals('6', isbn.metadata.checkDigit, code)
@@ -122,6 +130,29 @@ class ParserTest {
         assertEquals(1, isbn0.metadata.groupLength)
         assertEquals(2, isbn0.metadata.registrantLength)
         assertEquals(6, isbn0.metadata.publicationLength)
+
+        // Test ISMN
+        listOf(
+            "979-0-66003-838-3",
+            "9790660038383",
+            "M-66003-838-3",
+        ).forEach { code ->
+            val ismn = parser.parse(code)
+            assertEquals(979u, ismn.gs1, code)
+            assertEquals("979", ismn.gs1Element, code)
+            assertEquals(0u, ismn.group, code)
+            assertEquals("0", ismn.groupElement, code)
+            assertEquals(66003u, ismn.registrant, code)
+            assertEquals("66003", ismn.registrantElement, code)
+            assertEquals(838u, ismn.publication, code)
+            assertEquals("838", ismn.publicationElement, code)
+            assertFalse(ismn.metadata.type.isShort, code)
+            assertTrue(ismn.metadata.hasCheckDigit, code)
+            assertTrue(ismn.metadata.isCheckDigitValid, code)
+            assertEquals('3', ismn.metadata.checkDigit, code)
+            assertEquals("Musicland", ismn.metadata.agencyName, code)
+            assertNull(ismn.metadata.packagingIndicator, code)
+        }
     }
 
     @Test
@@ -130,8 +161,12 @@ class ParserTest {
         mapOf(
             "978-5-17-095179-2" to true,
             "978-5-17-095179" to false,
+            "9785170951792" to true,
+            "978517095179" to false,
             "1-55404-295-3" to true,
             "1-55404-295" to false,
+            "979-0-66003-838-4" to true,
+            "979-0-66003-838" to false,
         ).forEach { (code, expectedToHave) ->
             val isbn = parser.parse(code, false)
             assertEquals(expectedToHave, isbn.metadata.hasCheckDigit, code)
@@ -143,7 +178,7 @@ class ParserTest {
     fun testParseXCheckDigit() {
         val parser = Parser(MockRangesProvider())
         val isbn = parser.parse("1-55404-295-X")
-        assertTrue(isbn.metadata.format.isShort)
+        assertTrue(isbn.metadata.type.isShort)
         assertTrue(isbn.metadata.hasCheckDigit)
         assertEquals('X', isbn.metadata.checkDigit)
         assertTrue(isbn.metadata.isCheckDigitValid)
@@ -168,7 +203,7 @@ class ParserTest {
             assertEquals(95179u, isbn.publication, code)
             assertEquals("095179", isbn.publicationElement, code)
             // Test metadata
-            assertEquals(BookNumber.Format.GTIN_14, isbn.metadata.format)
+            assertEquals(BookNumber.Type.GTIN_14, isbn.metadata.type)
             assertTrue(isbn.metadata.hasCheckDigit, code)
             assertTrue(isbn.metadata.isCheckDigitValid, code)
             assertEquals(checkDigit, isbn.metadata.checkDigit, code)
@@ -190,7 +225,7 @@ class ParserTest {
             "97851709517@6" to Pair("1-2", "Unexpected characters in the code at ...>09517@<6"),
             "978517095179@" to Pair("1-2", "Unexpected characters in the code at 978517095179>@< (EAN-13)"),
             "99785170951796" to Pair("1-2", "Unexpected characters in the code at >9<9785170951796 (GTIN-14)"), // wrong packaging indicator (must be 0-8)
-            "12345" to Pair("1-3", "Code length is not matching any known format at >12345<"),
+            "12345" to Pair("1-3", "Code length is not matching any known type at >12345<"),
             "9775170951796" to Pair("1-4", "GS1 element is unknown at >977<5170951796"),
             "9783170951796" to Pair("1-5", "Group element is unknown at >978-3<170951796"),
             "9785200951796" to Pair("1-6", "Failed to find any matching ISBN range at ...>2009517<96"),
@@ -219,6 +254,27 @@ class ParserTest {
             }.let {
                 assertEquals(errorCode, it.errorCode)
             }
+        }
+    }
+
+    @Test
+    fun testISMNRanges() {
+        val parser = Parser(MockRangesProvider())
+        mapOf(
+            "979-0-000-12345-8" to 5,
+            "979-0-003-12345-5" to 5,
+            "979-0-015-12345-0" to 5,
+            "979-0-2600-0043-8" to 4,
+            "979-0-66003-838-3" to 3,
+            "979-0-802301-10-8" to 2,
+            "979-0-9018302-1-9" to 1,
+        ).forEach { (code, expectedPublicationLength) ->
+            val bn = parser.parse(code)
+            assertEquals(BookNumber.Type.ISMN, bn.metadata.type, code)
+            assertEquals(1, bn.metadata.groupLength, code)
+            assertEquals(expectedPublicationLength, bn.metadata.publicationLength, code)
+            assertEquals(8 - expectedPublicationLength, bn.metadata.registrantLength, code)
+            assertEquals(code, bn.toSourceFormat())
         }
     }
 }
