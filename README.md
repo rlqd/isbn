@@ -8,7 +8,7 @@ A Kotlin library to parse, validate and convert International Standard Book Numb
 
 * Lightweight (no third-party dependencies)
 * Extensible and feature-rich
-* Well-documented in KDoc
+* Well-documented in KDoc ([javadoc](https://javadoc.io/doc/dev.rlqd.libs/isbn/latest/index.html))
 * Full test coverage
 * Stable API (methods and classes annotated by `@ApiStatus`)
 
@@ -30,7 +30,8 @@ which allows to use the library as a check digit calculator.
 
 ### How to install
 
-The library is available through Maven Central
+The library is available through Maven Central:
+[dev.rlqd.libs:isbn](https://central.sonatype.com/artifact/dev.rlqd.libs/isbn)
 
 Example for Gradle:
 
